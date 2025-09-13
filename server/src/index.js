@@ -7,6 +7,7 @@ const { connectMongo } = require("./db/mongo");
 const courseRoutes = require("./routes/courses");
 const eventRoutes = require("./routes/events");
 const commentRoutes = require("./routes/comments");
+const assignmentRoutes = require("./routes/assignments");
 
 const app = express();
 app.use(cors());
@@ -17,6 +18,7 @@ app.get("/health", (_, res) => res.json({ ok: true }));
 app.use("/courses", courseRoutes);
 app.use("/events", eventRoutes);
 app.use("/comments", commentRoutes);
+app.use("/assignments", assignmentRoutes);
 
 const PORT = Number(process.env.PORT || 5000);
 
