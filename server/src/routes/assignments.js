@@ -11,6 +11,35 @@ router.get("/", async (req, res) => {
   }
 });
 
+
+router.get("/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const assignment = await prisma.assignment.findUnique({
+      where: { id: Number(id) },
+    });
+    if (!assignment) {
+      return res.status(404).json({ error: "Assignment not found" });
+    }
+    res.json(assignment);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch assignment details" });
+  }
+});
+
+
+router.get("/by-course/:courseId", async (req, res) => {
+  const { courseId } = req.params;
+  try {
+    const assignments = await prisma.assignment.findMany({
+      where: { courseId: Number(courseId) },
+    });
+    res.json(assignments);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch assignments for course" });
+  }
+});
+
 router.post("/", async (req, res) => {
   const { title, description, dueAt, courseId } = req.body;
   try {

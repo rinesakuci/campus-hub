@@ -1,106 +1,63 @@
-import React, { useEffect, useState } from "react";
-import { api } from "../api";
-import { format } from "date-fns";
-import { FiPlus, FiCalendar } from "react-icons/fi";
-import Modal from "../components/Modal";
+import { useEffect, useState } from "react";
+import { api, getUser } from "../api";
 
-export default function Events() {
-  const [events, setEvents] = useState([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [title, setTitle] = useState("");
-  const [date, setDate] = useState("");
-  const [location, setLocation] = useState("");
-  const [description, setDescription] = useState("");
+export default function Events(){
+  const [items,setItems]=useState([]);
+  const [activeId,setActiveId]=useState(null);
+  const [comments,setComments]=useState([]);
+  const [text,setText]=useState("");
+  const u = getUser();
 
-  useEffect(() => {
-    loadEvents();
-  }, []);
+  function load(){ api.get("/events").then(r=>setItems(r.data)); }
+  useEffect(()=>{ load(); },[]);
 
-  const loadEvents = () => {
-    api.get("/events").then(r => setEvents(r.data));
-  };
+  async function openComments(id){
+    setActiveId(id);
+    const { data } = await api.get(`/comments`, { params:{ entityType:"event", entityId:id } });
+    setComments(data);
+  }
 
-  const createEvent = async (e) => {
+  async function addComment(e){
     e.preventDefault();
-    await api.post("/events", { title, date, location, description });
-    setTitle(""); setDate(""); setLocation(""); setDescription("");
-    setIsModalOpen(false);
-    loadEvents();
-  };
+    await api.post(`/comments`, { entityType:"event", entityId: activeId, text });
+    setText("");
+    openComments(activeId);
+  }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">My Events</h1>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg hover:bg-green-700 transition duration-300 flex items-center"
-        >
-          <FiPlus className="mr-2" />
-          Add Event
-        </button>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {events.map(event => (
-          <div key={event.id} className="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col">
-            <div className="flex items-center mb-4">
-              <FiCalendar className="text-3xl text-green-500 mr-4" />
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">{event.title}</h2>
-                <p className="text-sm text-gray-500 font-medium">
-                  {format(new Date(event.date), "EEE, MMM d, yyyy 'at' h:mm a")}
-                </p>
-              </div>
+    <div className="space-y-6">
+      <h1 className="text-2xl font-semibold">Events</h1>
+      <ul className="space-y-2">
+        {items.map(ev => (
+          <li key={ev.id} className="p-3 bg-white rounded border">
+            <div className="font-medium">{ev.title}</div>
+            <div className="text-sm text-slate-600">{new Date(ev.date).toLocaleString()}</div>
+            <div className="mt-2">
+              <button onClick={()=>openComments(ev.id)} className="px-3 py-1.5 rounded border">Shiko Komentet</button>
             </div>
-            {event.location && (
-              <p className="text-gray-600">Location: <span className="font-medium">{event.location}</span></p>
-            )}
-            {event.description && (
-              <p className="text-gray-600 mt-2 line-clamp-3">{event.description}</p>
-            )}
-          </div>
+          </li>
         ))}
-      </div>
+      </ul>
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
-        <form onSubmit={createEvent} className="space-y-4">
-          <h3 className="text-2xl font-semibold mb-2">Create New Event</h3>
-          <input
-            className="w-full border-2 border-gray-200 p-3 rounded-lg focus:outline-none focus:border-green-500 transition-colors"
-            placeholder="Event Title"
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-            required
-          />
-          <input
-            type="datetime-local"
-            className="w-full border-2 border-gray-200 p-3 rounded-lg focus:outline-none focus:border-green-500 transition-colors"
-            value={date}
-            onChange={e => setDate(e.target.value)}
-            required
-          />
-          <input
-            className="w-full border-2 border-gray-200 p-3 rounded-lg focus:outline-none focus:border-green-500 transition-colors"
-            placeholder="Location (e.g., Room 101)"
-            value={location}
-            onChange={e => setLocation(e.target.value)}
-          />
-          <textarea
-            className="w-full border-2 border-gray-200 p-3 rounded-lg focus:outline-none focus:border-green-500 transition-colors"
-            placeholder="Description (optional)"
-            value={description}
-            onChange={e => setDescription(e.target.value)}
-            rows="4"
-          />
-          <button
-            type="submit"
-            className="w-full bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 transition duration-300"
-          >
-            Create Event
-          </button>
-        </form>
-      </Modal>
+      {activeId && (
+        <div className="bg-white p-4 rounded border">
+          <h3 className="font-semibold mb-2">Komentet</h3>
+          <ul className="space-y-2 mb-3">
+            {comments.map(c => (
+              <li key={c._id} className="border rounded p-2">
+                <div className="text-sm"><span className="font-medium">{c.authorName}</span> • {new Date(c.createdAt).toLocaleString()}</div>
+                <div className="text-sm text-slate-700">{c.text}</div>
+              </li>
+            ))}
+          </ul>
+          {u?.role === "student" && (
+            <form onSubmit={addComment} className="flex gap-2">
+              <input className="flex-1 border rounded p-2" placeholder="Shkruaj koment..." value={text} onChange={e=>setText(e.target.value)} />
+              <button className="px-4 py-2 rounded bg-black text-white">Shto</button>
+            </form>
+          )}
+        </div>
+      )}
     </div>
   );
 }

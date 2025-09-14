@@ -1,63 +1,179 @@
-
-import React, { useEffect, useState } from "react";
-import { api } from "../api";
-import { format } from "date-fns";
-import { FiCalendar, FiBookOpen } from "react-icons/fi";
-
+import React, { useMemo, useState, useEffect } from "react";
+import { format, differenceInCalendarDays, isBefore } from "date-fns";
+import { Link } from "react-router-dom";
+import {
+  FiCalendar,
+  FiBookOpen,
+  FiBell,
+  FiUser,
+  FiArrowRight,
+  FiPlus,
+  FiClock,
+  FiMapPin,
+  FiChevronRight,
+} from "react-icons/fi";
 import DashboardCard from "../components/DashboardCard";
 
 export default function Dashboard() {
   const [events, setEvents] = useState([]);
   const [assignments, setAssignments] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    api.get("/events?_sort=date&_order=asc&_limit=3").then(r => setEvents(r.data));
-    api.get("/assignments?_sort=dueAt&_order=asc&_limit=3").then(r => setAssignments(r.data));
+    setTimeout(() => {
+      setEvents([
+        { id: 1, title: "Workshop React", date: "2025-09-20T14:00:00", location: "Lab 101" },
+        { id: 2, title: "Provimi i Algjebrës", date: "2025-09-25T09:00:00", location: "Salla 3" },
+      ]);
+      setAssignments([
+        { id: 1, title: "Projekt React", dueAt: "2025-09-16T23:59:00" },
+        { id: 2, title: "Ese Historia", dueAt: "2025-09-18T23:59:00" },
+      ]);
+      setNotifications([
+        { id: 1, title: "Orari i ri i mësimeve", message: "Kontrollo orarin e përditësuar.", createdAt: "2025-09-10" },
+        { id: 2, title: "Afati i pagesave", message: "Mos harro të paguash deri më 15 shtator.", createdAt: "2025-09-08" },
+      ]);
+      setIsLoading(false);
+    }, 1000);
   }, []);
 
+  const stats = useMemo(() => {
+    const today = new Date();
+    const upcomingEvents = events.filter((e) => new Date(e.date) >= today);
+    const overdueAssignments = assignments.filter(
+      (a) => isBefore(new Date(a.dueAt), today)
+    );
+    const dueSoonAssignments = assignments.filter((a) => {
+      const d = differenceInCalendarDays(new Date(a.dueAt), today);
+      return d >= 0 && d <= 7;
+    });
+    return {
+      upcomingCount: upcomingEvents.length,
+      overdueCount: overdueAssignments.length,
+      dueSoonCount: dueSoonAssignments.length,
+      notifCount: notifications.length,
+    };
+  }, [events, assignments, notifications]);
+
   return (
-    <div className="container mx-auto px-4 py-8 space-y-8">
-      <header className="text-center">
-        <h1 className="text-4xl font-bold text-gray-800">Welcome to Campus Hub! 👋</h1>
-        <p className="text-lg text-gray-500 mt-2">Your central place for academic life.</p>
-      </header>
+    <div className="min-h-[100dvh]">
+      <div className="container mx-auto px-4 py-8">
+        <header className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-violet-600 via-indigo-600 to-blue-600 text-white shadow-xl">
+          <div className="absolute -top-10 -right-10 h-56 w-56 rounded-full bg-white/10 blur-2xl" />
+          <div className="absolute -bottom-14 -left-14 h-56 w-56 rounded-full bg-black/10 blur-2xl" />
+          <div className="relative z-10 p-8 md:p-10">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+              <div>
+                <p className="text-sm md:text-base text-white/80">Paneli i Studentit</p>
+                <h1 className="mt-1 text-3xl md:text-4xl font-extrabold tracking-tight">
+                  Mirë se erdhët, Student! <span className="inline-block">👋</span>
+                </h1>
+                <p className="mt-2 max-w-2xl text-white/90">
+                  Menaxhoni ngjarjet, detyrat dhe njoftimet në një vend. Filloni me hapat e shpejtë më poshtë.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <Link
+                  to="/assignments"
+                  className="inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-sm font-semibold backdrop-blur hover:bg-white/20 transition"
+                >
+                  <FiBookOpen className="text-lg" /> Detyrat
+                </Link>
+                <Link
+                  to="/notifications"
+                  className="inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-sm font-semibold backdrop-blur hover:bg-white/20 transition"
+                >
+                  <FiBell className="text-lg" /> Njoftimet
+                </Link>
+              </div>
+            </div>
+          </div>
+        </header>
 
-      <div className="grid md:grid-cols-2 gap-8">
-        <DashboardCard title="Upcoming Events" icon={<FiCalendar className="text-3xl text-purple-500" />}>
-          {events.length > 0 ? (
-            <ul className="space-y-4">
-              {events.map(event => (
-                <li key={event.id} className="p-4 bg-gray-50 rounded-lg transition-transform transform hover:scale-105">
-                  <h3 className="font-semibold text-lg">{event.title}</h3>
-                  <p className="text-sm text-gray-600 mt-1">
-                    <span className="font-medium">{format(new Date(event.date), "MMM d, yyyy")}</span> at{" "}
-                    <span className="font-medium">{event.location}</span>
-                  </p>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-gray-500 italic">No upcoming events.</p>
-          )}
-        </DashboardCard>
+        <section className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard icon={<FiCalendar />} label="Ngjarje të ardhshme" value={stats.upcomingCount} />
+          <StatCard icon={<FiBookOpen />} label="Detyra të reja" value={stats.dueSoonCount} />
+          <StatCard icon={<FiBell />} label="Njoftime" value={stats.notifCount} />
+        </section>
 
-        <DashboardCard title="Recent Assignments" icon={<FiBookOpen className="text-3xl text-blue-500" />}>
-          {assignments.length > 0 ? (
-            <ul className="space-y-4">
-              {assignments.map(assignment => (
-                <li key={assignment.id} className="p-4 bg-gray-50 rounded-lg transition-transform transform hover:scale-105">
-                  <h3 className="font-semibold text-lg">{assignment.title}</h3>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Due: <span className="font-medium">{format(new Date(assignment.dueAt), "MMM d, yyyy")}</span>
-                  </p>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-gray-500 italic">No recent assignments.</p>
-          )}
-        </DashboardCard>
+        <div className="mt-8 grid lg:grid-cols-3 gap-6">
+          <DashboardCard title="Njoftime të Rëndësishme" icon={<FiBell className="text-3xl text-rose-500" />}>
+            {isLoading ? <SkeletonList rows={3} /> : (
+              <ul className="space-y-4">
+                {notifications.map((notif) => (
+                  <li key={notif.id} className="rounded-xl border border-slate-200 bg-white p-4">
+                    <h3 className="font-semibold text-slate-800">{notif.title}</h3>
+                    <p className="mt-1 text-sm text-slate-600">{notif.message}</p>
+                    <span className="text-xs text-slate-500">{format(new Date(notif.createdAt), "MMM d, yyyy")}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </DashboardCard>
+
+          <DashboardCard title="Ngjarjet e Ardhshme" icon={<FiCalendar className="text-3xl text-emerald-500" />}>
+            {isLoading ? <SkeletonList rows={2} /> : (
+              <ul className="space-y-4">
+                {events.map((event) => (
+                  <li key={event.id} className="rounded-xl border border-slate-200 bg-white p-4">
+                    <h3 className="font-semibold text-slate-800">{event.title}</h3>
+                    <p className="text-sm text-slate-600 flex items-center gap-1"><FiClock /> {format(new Date(event.date), "MMM d, yyyy HH:mm")}</p>
+                    {event.location && <p className="text-xs text-slate-500 flex items-center gap-1"><FiMapPin /> {event.location}</p>}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </DashboardCard>
+
+          <DashboardCard title="Detyrat e Afërta" icon={<FiBookOpen className="text-3xl text-violet-500" />}>
+            {isLoading ? <SkeletonList rows={2} /> : (
+              <ul className="space-y-4">
+                {assignments.map((a) => {
+                  const due = new Date(a.dueAt);
+                  return (
+                    <li key={a.id} className="rounded-xl border border-slate-200 bg-white p-4">
+                      <h3 className="font-semibold text-slate-800">{a.title}</h3>
+                      <p className="text-sm text-slate-600 flex items-center gap-1"><FiClock /> Afati: {format(due, "MMM d, yyyy HH:mm")}</p>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </DashboardCard>
+        </div>
       </div>
     </div>
+  );
+}
+
+function StatCard({ icon, label, value, tone = "default" }) {
+  const tones = {
+    default: "ring-slate-200 bg-white",
+    warning: "ring-amber-200 bg-white",
+  };
+  return (
+    <div className={`rounded-2xl p-5 shadow-sm ring-1 ${tones[tone]}`}>
+      <div className="flex items-center gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-50 text-slate-700">{icon}</div>
+        <div>
+          <p className="text-sm text-slate-500">{label}</p>
+          <p className="text-2xl font-bold text-slate-900">{value}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SkeletonList({ rows }) {
+  return (
+    <ul className="space-y-4">
+      {Array.from({ length: rows }).map((_, i) => (
+        <li key={i} className="animate-pulse rounded-xl border border-slate-200 bg-white p-4">
+          <div className="h-4 w-2/3 bg-slate-200 rounded" />
+          <div className="mt-2 h-3 w-1/2 bg-slate-200 rounded" />
+        </li>
+      ))}
+    </ul>
   );
 }

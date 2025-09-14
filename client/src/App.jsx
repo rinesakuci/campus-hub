@@ -10,7 +10,7 @@ return (
         <Link to="/events">Events</Link>
       </div>
     </nav>
-    <main className="max-w-5xl mx-auto px-4">
+    <main className="max-w-screen-xl mx-auto px-10">
       <Outlet />
     </main>
   </div>
