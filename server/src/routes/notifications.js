@@ -1,12 +1,28 @@
 const { Router } = require("express");
 const Notification = require("../models/Notification");
+const { requireRole } = require("../middlewares/auth");
 const r = Router();
 
 r.get("/", async (req, res) => {
   const userId = req.user?.id;
-  const q = userId ? { $or: [{ userId }, { userId: { $exists: false } }, { userId: null }] } : { userId: { $exists: false } };
-  const items = await Notification.find(q).sort({ createdAt: -1 }).limit(50);
+  const filters = [{ userId: null }, { userId: { $exists: false } }];
+  if (userId) filters.push({ userId });
+  const items = await Notification.find({ $or: filters })
+    .sort({ createdAt: -1 })
+    .limit(50);
   res.json(items);
+});
+
+r.post("/", requireRole("admin"), async (req, res) => {
+  const { title, message, userId } = req.body;
+  if (!title || !message) return res.status(400).json({ error: "title dhe message kërkohen" });
+  const it = await Notification.create({ title, message, userId: userId ?? null });
+  res.json(it);
+});
+
+r.delete('/:id', requireRole('admin'), async (req,res)=>{
+  await Notification.findByIdAndDelete(req.params.id);
+  res.json({ ok: true });
 });
 
 module.exports = r;
