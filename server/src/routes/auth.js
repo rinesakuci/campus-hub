@@ -7,7 +7,6 @@ const { signAccess, newRefreshValue, hashToken, refreshCookieOptions } = require
 const r = Router();
 r.use(cookieParser());
 
-// helper: issue refresh (rotate) + return access
 async function issueTokens(res, user, replaceHash){
   const accessToken = signAccess(user);
   const value = newRefreshValue();
@@ -15,7 +14,6 @@ async function issueTokens(res, user, replaceHash){
   const ttlDays = Number(process.env.REFRESH_TOKEN_TTL_DAYS||7);
   const expiresAt = new Date(Date.now() + ttlDays*24*60*60*1000);
 
-  // revoke old (if provided)
   if(replaceHash){
     await prisma.refreshToken.updateMany({
       where: { tokenHash: replaceHash, userId: user.id, revokedAt: null },
@@ -41,9 +39,9 @@ r.post("/register", async (req,res)=>{
 r.post("/login", async (req,res)=>{
   const { email, password } = req.body;
   const user = await prisma.user.findUnique({ where: { email } });
-  if(!user) return res.status(401).json({ error: "Invalid credentials" });
+  if(!user) return res.status(401).json({ error: "Invalid email" });
   const ok = await bcrypt.compare(password, user.password);
-  if(!ok) return res.status(401).json({ error: "Invalid credentials" });
+  if(!ok) return res.status(401).json({ error: "Invalid password" });
   const accessToken = await issueTokens(res, user);
   res.json({ accessToken, user: { id:user.id, fullName:user.fullName, email:user.email, role:user.role } });
 });
@@ -56,7 +54,7 @@ r.post("/refresh", async (req,res)=>{
   if(!record || record.expiresAt < new Date()) return res.status(401).json({ error: "Invalid refresh" });
   const user = await prisma.user.findUnique({ where: { id: record.userId } });
   if(!user) return res.status(401).json({ error: "Invalid user" });
-  const accessToken = await issueTokens(res, user, tokenHash); // rotate
+  const accessToken = await issueTokens(res, user, tokenHash);
   res.json({ accessToken, user: { id:user.id, fullName:user.fullName, email:user.email, role:user.role } });
 });
 

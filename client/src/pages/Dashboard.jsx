@@ -1,16 +1,13 @@
-import React, { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { format, differenceInCalendarDays, isBefore } from "date-fns";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { api, getUser } from "../api";
 import {
   FiCalendar,
   FiBookOpen,
   FiBell,
-  FiUser,
-  FiArrowRight,
-  FiPlus,
   FiClock,
   FiMapPin,
-  FiChevronRight,
 } from "react-icons/fi";
 import DashboardCard from "../components/DashboardCard";
 
@@ -19,31 +16,43 @@ export default function Dashboard() {
   const [assignments, setAssignments] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const nav = useNavigate();
 
   useEffect(() => {
-    setTimeout(() => {
-      setEvents([
-        { id: 1, title: "Workshop React", date: "2025-09-20T14:00:00", location: "Lab 101" },
-        { id: 2, title: "Provimi i Algjebrës", date: "2025-09-25T09:00:00", location: "Salla 3" },
-      ]);
-      setAssignments([
-        { id: 1, title: "Projekt React", dueAt: "2025-09-16T23:59:00" },
-        { id: 2, title: "Ese Historia", dueAt: "2025-09-18T23:59:00" },
-      ]);
-      setNotifications([
-        { id: 1, title: "Orari i ri i mësimeve", message: "Kontrollo orarin e përditësuar.", createdAt: "2025-09-10" },
-        { id: 2, title: "Afati i pagesave", message: "Mos harro të paguash deri më 15 shtator.", createdAt: "2025-09-08" },
-      ]);
-      setIsLoading(false);
-    }, 1000);
-  }, []);
+    let mounted = true;
+    async function load() {
+      setIsLoading(true);
+      try {
+        const [ev, asg, nots] = await Promise.all([
+          api.get("/events"),
+          api.get("/assignments", { params: { days: 30 } }),
+          api.get("/notifications"),
+        ]);
+        if (!mounted) return;
+        setEvents(Array.isArray(ev.data) ? ev.data : []);
+        setAssignments(Array.isArray(asg.data) ? asg.data : []);
+        setNotifications(Array.isArray(nots.data) ? nots.data : []);
+      } catch (err) {
+        if (err?.response?.status === 401) {
+          nav("/login", { replace: true });
+          return;
+        }
+        console.error("Dashboard load error", err);
+      } finally {
+        mounted && setIsLoading(false);
+      }
+    }
+
+    load();
+    return () => { mounted = false; };
+  }, [nav]);
+
+  const user = getUser();
 
   const stats = useMemo(() => {
     const today = new Date();
     const upcomingEvents = events.filter((e) => new Date(e.date) >= today);
-    const overdueAssignments = assignments.filter(
-      (a) => isBefore(new Date(a.dueAt), today)
-    );
+    const overdueAssignments = assignments.filter((a) => isBefore(new Date(a.dueAt), today));
     const dueSoonAssignments = assignments.filter((a) => {
       const d = differenceInCalendarDays(new Date(a.dueAt), today);
       return d >= 0 && d <= 7;
@@ -67,10 +76,10 @@ export default function Dashboard() {
               <div>
                 <p className="text-sm md:text-base text-white/80">Paneli i Studentit</p>
                 <h1 className="mt-1 text-3xl md:text-4xl font-extrabold tracking-tight">
-                  Mirë se erdhët, Student! <span className="inline-block">👋</span>
+                  Mirë se erdhe{user?`, ${user.fullName}`:""}! <span className="inline-block">👋</span>
                 </h1>
                 <p className="mt-2 max-w-2xl text-white/90">
-                  Menaxhoni ngjarjet, detyrat dhe njoftimet në një vend. Filloni me hapat e shpejtë më poshtë.
+                  Menaxho ngjarjet, detyrat dhe njoftimet në një vend.
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-3">
@@ -93,52 +102,58 @@ export default function Dashboard() {
 
         <section className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard icon={<FiCalendar />} label="Ngjarje të ardhshme" value={stats.upcomingCount} />
-          <StatCard icon={<FiBookOpen />} label="Detyra të reja" value={stats.dueSoonCount} />
+          <StatCard icon={<FiBookOpen />} label="Detyrat brenda 7 ditëve" value={stats.dueSoonCount} />
           <StatCard icon={<FiBell />} label="Njoftime" value={stats.notifCount} />
         </section>
 
         <div className="mt-8 grid lg:grid-cols-3 gap-6">
           <DashboardCard title="Njoftime të Rëndësishme" icon={<FiBell className="text-3xl text-rose-500" />}>
             {isLoading ? <SkeletonList rows={3} /> : (
-              <ul className="space-y-4">
-                {notifications.map((notif) => (
-                  <li key={notif.id} className="rounded-xl border border-slate-200 bg-white p-4">
-                    <h3 className="font-semibold text-slate-800">{notif.title}</h3>
-                    <p className="mt-1 text-sm text-slate-600">{notif.message}</p>
-                    <span className="text-xs text-slate-500">{format(new Date(notif.createdAt), "MMM d, yyyy")}</span>
-                  </li>
-                ))}
-              </ul>
+              notifications.length ? (
+                <ul className="space-y-4">
+                  {notifications.map((notif) => (
+                    <li key={notif._id || notif.id} className="rounded-xl border border-slate-200 bg-white p-4">
+                      <h3 className="font-semibold text-slate-800">{notif.title}</h3>
+                      <p className="mt-1 text-sm text-slate-600">{notif.message}</p>
+                      <span className="text-xs text-slate-500">{format(new Date(notif.createdAt), "MMM d, yyyy")}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : <div className="text-sm text-slate-500">S’ka njoftime.</div>
             )}
           </DashboardCard>
 
           <DashboardCard title="Ngjarjet e Ardhshme" icon={<FiCalendar className="text-3xl text-emerald-500" />}>
             {isLoading ? <SkeletonList rows={2} /> : (
-              <ul className="space-y-4">
-                {events.map((event) => (
-                  <li key={event.id} className="rounded-xl border border-slate-200 bg-white p-4">
-                    <h3 className="font-semibold text-slate-800">{event.title}</h3>
-                    <p className="text-sm text-slate-600 flex items-center gap-1"><FiClock /> {format(new Date(event.date), "MMM d, yyyy HH:mm")}</p>
-                    {event.location && <p className="text-xs text-slate-500 flex items-center gap-1"><FiMapPin /> {event.location}</p>}
-                  </li>
-                ))}
-              </ul>
+              events.length ? (
+                <ul className="space-y-4">
+                  {events.map((event) => (
+                    <li key={event.id} className="rounded-xl border border-slate-200 bg-white p-4">
+                      <h3 className="font-semibold text-slate-800">{event.title}</h3>
+                      <p className="text-sm text-slate-600 flex items-center gap-1"><FiClock /> {format(new Date(event.date), "MMM d, yyyy HH:mm")}</p>
+                      {event.location && <p className="text-xs text-slate-500 flex items-center gap-1"><FiMapPin /> {event.location}</p>}
+                    </li>
+                  ))}
+                </ul>
+              ) : <div className="text-sm text-slate-500">S’ka ngjarje të planifikuara.</div>
             )}
           </DashboardCard>
 
           <DashboardCard title="Detyrat e Afërta" icon={<FiBookOpen className="text-3xl text-violet-500" />}>
             {isLoading ? <SkeletonList rows={2} /> : (
-              <ul className="space-y-4">
-                {assignments.map((a) => {
-                  const due = new Date(a.dueAt);
-                  return (
-                    <li key={a.id} className="rounded-xl border border-slate-200 bg-white p-4">
-                      <h3 className="font-semibold text-slate-800">{a.title}</h3>
-                      <p className="text-sm text-slate-600 flex items-center gap-1"><FiClock /> Afati: {format(due, "MMM d, yyyy HH:mm")}</p>
-                    </li>
-                  );
-                })}
-              </ul>
+              assignments.length ? (
+                <ul className="space-y-4">
+                  {assignments.map((a) => {
+                    const due = new Date(a.dueAt);
+                    return (
+                      <li key={a.id} className="rounded-xl border border-slate-200 bg-white p-4">
+                        <h3 className="font-semibold text-slate-800">{a.title}</h3>
+                        <p className="text-sm text-slate-600 flex items-center gap-1"><FiClock /> Afati: {format(due, "MMM d, yyyy HH:mm")}</p>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : <div className="text-sm text-slate-500">S’ka detyra brenda intervalit.</div>
             )}
           </DashboardCard>
         </div>

@@ -9,6 +9,8 @@ const authRoutes = require("./routes/auth");
 const courseRoutes = require("./routes/courses");
 const eventRoutes = require("./routes/events");
 const commentRoutes = require("./routes/comments");
+const assignmentRoutes = require("./routes/assignments");
+const notificationRoutes = require("./routes/notifications");
 
 const app = express();
 app.use(cors({ origin: process.env.CLIENT_ORIGIN, credentials: true }));
@@ -17,11 +19,12 @@ app.use(express.json());
 app.get("/health", (_, res) => res.json({ ok: true }));
 app.use("/auth", authRoutes);
 
-// Më poshtë: kërkohet access token
 app.use(authRequired);
 app.use("/courses", courseRoutes);
 app.use("/events", eventRoutes);
 app.use("/comments", commentRoutes);
+app.use("/assignments", assignmentRoutes);
+app.use("/notifications", notificationRoutes);
 
 const PORT = Number(process.env.PORT || 5000);
 
