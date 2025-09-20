@@ -5,11 +5,21 @@ const r = Router();
 
 r.get("/", async (req, res) => {
   const userId = req.user?.id;
-  const filters = [{ userId: null }, { userId: { $exists: false } }];
-  if (userId) filters.push({ userId });
-  const items = await Notification.find({ $or: filters })
+  const days = Math.max(1, Number(req.query.days || 20));
+  const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+  const audience = [{ userId: null }, { userId: { $exists: false } }];
+  if (userId) audience.push({ userId });
+
+  const items = await Notification.find({
+    $and: [
+      { $or: audience },
+      { createdAt: { $gte: cutoff } },
+    ],
+  })
     .sort({ createdAt: -1 })
     .limit(50);
+    
   res.json(items);
 });
 

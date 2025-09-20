@@ -8,6 +8,7 @@ import {
   FiBell,
   FiClock,
   FiMapPin,
+  FiAlertCircle,
 } from "react-icons/fi";
 import DashboardCard from "../components/DashboardCard";
 
@@ -53,14 +54,11 @@ export default function Dashboard() {
     const today = new Date();
     const upcomingEvents = events.filter((e) => new Date(e.date) >= today);
     const overdueAssignments = assignments.filter((a) => isBefore(new Date(a.dueAt), today));
-    const dueSoonAssignments = assignments.filter((a) => {
-      const d = differenceInCalendarDays(new Date(a.dueAt), today);
-      return d >= 0 && d <= 7;
-    });
+    const pendingAssignments = assignments.length;
+
     return {
       upcomingCount: upcomingEvents.length,
-      overdueCount: overdueAssignments.length,
-      dueSoonCount: dueSoonAssignments.length,
+      pendingCount: pendingAssignments,
       notifCount: notifications.length,
     };
   }, [events, assignments, notifications]);
@@ -102,60 +100,123 @@ export default function Dashboard() {
 
         <section className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard icon={<FiCalendar />} label="Ngjarje të ardhshme" value={stats.upcomingCount} />
-          <StatCard icon={<FiBookOpen />} label="Detyrat brenda 7 ditëve" value={stats.dueSoonCount} />
+          <StatCard icon={<FiBookOpen />} label="Detyra të hapura" value={stats.pendingCount} />
           <StatCard icon={<FiBell />} label="Njoftime" value={stats.notifCount} />
         </section>
 
         <div className="mt-8 grid lg:grid-cols-3 gap-6">
-          <DashboardCard title="Njoftime të Rëndësishme" icon={<FiBell className="text-3xl text-rose-500" />}>
+          <DashboardCard 
+            title="Njoftime të Rëndësishme" 
+            icon={<FiBell className="text-3xl text-rose-500" />}
+            action={<Link to="/notifications" className="text-sm font-medium text-rose-600 hover:text-rose-800">Shiko të gjitha</Link>}
+          >
             {isLoading ? <SkeletonList rows={3} /> : (
               notifications.length ? (
                 <ul className="space-y-4">
-                  {notifications.map((notif) => (
-                    <li key={notif._id || notif.id} className="rounded-xl border border-slate-200 bg-white p-4">
-                      <h3 className="font-semibold text-slate-800">{notif.title}</h3>
-                      <p className="mt-1 text-sm text-slate-600">{notif.message}</p>
-                      <span className="text-xs text-slate-500">{format(new Date(notif.createdAt), "MMM d, yyyy")}</span>
+                  {notifications.slice(0, 3).map((notif) => (
+                    <li key={notif._id || notif.id} className="rounded-xl border border-slate-200 bg-white p-4 hover:shadow-md transition-shadow">
+                      <div className="flex items-start gap-3">
+                        <div className={`p-2 rounded-full ${notif.priority === 'high' ? 'bg-rose-100 text-rose-600' : 'bg-blue-100 text-blue-600'}`}>
+                          <FiAlertCircle className="text-lg" />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-slate-800">{notif.title}</h3>
+                          <p className="mt-1 text-sm text-slate-600 line-clamp-2">{notif.message}</p>
+                          <span className="text-xs text-slate-500">{format(new Date(notif.createdAt), "MMM d, yyyy")}</span>
+                        </div>
+                      </div>
                     </li>
                   ))}
                 </ul>
-              ) : <div className="text-sm text-slate-500">S’ka njoftime.</div>
+              ) : <div className="text-sm text-slate-500">S'ka njoftime.</div>
             )}
           </DashboardCard>
 
-          <DashboardCard title="Ngjarjet e Ardhshme" icon={<FiCalendar className="text-3xl text-emerald-500" />}>
-            {isLoading ? <SkeletonList rows={2} /> : (
-              events.length ? (
-                <ul className="space-y-4">
-                  {events.map((event) => (
-                    <li key={event.id} className="rounded-xl border border-slate-200 bg-white p-4">
-                      <h3 className="font-semibold text-slate-800">{event.title}</h3>
-                      <p className="text-sm text-slate-600 flex items-center gap-1"><FiClock /> {format(new Date(event.date), "MMM d, yyyy HH:mm")}</p>
-                      {event.location && <p className="text-xs text-slate-500 flex items-center gap-1"><FiMapPin /> {event.location}</p>}
-                    </li>
-                  ))}
-                </ul>
-              ) : <div className="text-sm text-slate-500">S’ka ngjarje të planifikuara.</div>
-            )}
-          </DashboardCard>
-
-          <DashboardCard title="Detyrat e Afërta" icon={<FiBookOpen className="text-3xl text-violet-500" />}>
-            {isLoading ? <SkeletonList rows={2} /> : (
-              assignments.length ? (
-                <ul className="space-y-4">
-                  {assignments.map((a) => {
-                    const due = new Date(a.dueAt);
-                    return (
-                      <li key={a.id} className="rounded-xl border border-slate-200 bg-white p-4">
-                        <h3 className="font-semibold text-slate-800">{a.title}</h3>
-                        <p className="text-sm text-slate-600 flex items-center gap-1"><FiClock /> Afati: {format(due, "MMM d, yyyy HH:mm")}</p>
+          <DashboardCard 
+              title="Ngjarjet e Ardhshme" 
+              icon={<FiCalendar className="text-3xl text-emerald-500" />}
+              action={<Link to="/events" className="text-sm font-medium text-emerald-600 hover:text-emerald-800">Shiko të gjitha</Link>}
+            >
+              {isLoading ? <SkeletonList rows={2} /> : (
+                events.length ? (
+                  <ul className="space-y-4">
+                    {events.slice(0, 4).map((event) => (
+                      <li
+                        key={event.id}
+                        onClick={()=> nav(`/events/${event.id}`)}
+                        className="rounded-xl border border-slate-200 bg-white p-4 hover:shadow-md transition-shadow cursor-pointer"
+                        role="button" tabIndex={0}
+                        onKeyDown={(e)=> (e.key === 'Enter' || e.key === ' ') && nav(`/events/${event.id}`)}
+                      >
+                        <h3 className="font-semibold text-slate-800">{event.title}</h3>
+                        <div className="mt-2 flex flex-wrap gap-3 text-sm text-slate-600">
+                          <span className="flex items-center gap-1">
+                            <FiClock /> {format(new Date(event.date), "MMM d, yyyy HH:mm")}
+                          </span>
+                          {event.location && (
+                            <span className="flex items-center gap-1">
+                              <FiMapPin /> {event.location}
+                            </span>
+                          )}
+                        </div>
+                        {event.description && (
+                          <p className="mt-2 text-sm text-slate-600 line-clamp-2">{event.description}</p>
+                        )}
                       </li>
-                    );
-                  })}
-                </ul>
-              ) : <div className="text-sm text-slate-500">S’ka detyra brenda intervalit.</div>
-            )}
-          </DashboardCard>
+                    ))}
+                  </ul>
+                ) : <div className="text-sm text-slate-500">S'ka ngjarje të planifikuara.</div>
+              )}
+            </DashboardCard>
+
+           <DashboardCard 
+              title="Detyrat e Afërta" 
+              icon={<FiBookOpen className="text-3xl text-violet-500" />}
+              action={<Link to="/assignments" className="text-sm font-medium text-violet-600 hover:text-violet-800">Shiko të gjitha</Link>}
+            >
+              {isLoading ? <SkeletonList rows={2} /> : (
+                assignments.length ? (
+                  <ul className="space-y-4">
+                    {assignments.slice(0, 4).map((a) => {
+                      const due = new Date(a.dueAt);
+                      const daysUntilDue = differenceInCalendarDays(due, new Date());
+                      const isUrgent = daysUntilDue <= 2;
+
+                      return (
+                        <li
+                          key={a.id}
+                          onClick={()=> nav(`/assignments/${a.id}`)}
+                          className={`rounded-xl border p-4 hover:shadow-md transition-shadow cursor-pointer ${
+                            isUrgent ? 'border-rose-200 bg-rose-50' : 'border-slate-200 bg-white'
+                          }`}
+                          role="button"
+                        >
+                          <div className="flex justify-between items-start">
+                            <h3 className="font-semibold text-slate-800">{a.title}</h3>
+                            <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                              isUrgent ? 'bg-rose-100 text-rose-800' : 'bg-violet-100 text-violet-800'
+                            }`}>
+                              Në {daysUntilDue} ditë
+                            </span>
+                          </div>
+
+                          {a.course && (
+                            <p className="mt-1 text-xs text-slate-500">
+                              Lënda: {a.course.name} {a.course.code ? `(${a.course.code})` : ""}
+                            </p>
+                          )}
+
+                          <p className="mt-1 text-sm text-slate-600 flex items-center gap-1">
+                            <FiClock /> Afati: {format(due, "MMM d, yyyy HH:mm")}
+                          </p>
+                        </li>
+                      );
+                    })}
+
+                  </ul>
+                ) : <div className="text-sm text-slate-500">S'ka detyra brenda intervalit.</div>
+              )}
+            </DashboardCard>
         </div>
       </div>
     </div>
