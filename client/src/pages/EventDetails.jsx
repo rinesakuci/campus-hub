@@ -1,112 +1,165 @@
-import React, { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
-import { api } from "../api";
+import { useEffect, useState, useMemo } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { api, getUser } from "../api";
 import { format } from "date-fns";
-import { FiCalendar, FiMapPin, FiMessageSquare, FiSend, FiArrowLeft } from "react-icons/fi";
+import { 
+  FiArrowLeft, 
+  FiCalendar, 
+  FiClock, 
+  FiMapPin, 
+  FiBookOpen,
+  FiAlertCircle
+} from "react-icons/fi";
+import CommentsPanel from "../components/CommentsPanel";
 
-export default function EventDetails() {
-  const { eventId } = useParams();
-  const [event, setEvent] = useState(null);
-  const [comments, setComments] = useState([]);
-  const [newComment, setNewComment] = useState("");
+export default function EventDetail() {
+  const { id } = useParams();
+  const nav = useNavigate();
+  const u = getUser();
+
+  const [ev, setEv] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
 
   useEffect(() => {
-    async function fetchData() {
+    let mounted = true;
+    async function load() {
+      setLoading(true);
+      setErr("");
       try {
-        const eventResponse = await api.get(`/events/${eventId}`);
-        setEvent(eventResponse.data);
-
-        const commentsResponse = await api.get(`/comments/event/${eventId}`);
-        setComments(commentsResponse.data);
-      } catch (error) {
-        console.error("Failed to fetch event details:", error);
+        const { data } = await api.get(`/events/${id}`);
+        if (!mounted) return;
+        setEv(data);
+      } catch (e) {
+        if (e?.response?.status === 401) return nav("/login", { replace: true });
+        setErr("Nuk u ngarkua ngjarja.");
       } finally {
-        setLoading(false);
+        mounted && setLoading(false);
       }
     }
-    fetchData();
-  }, [eventId]);
+    load();
+    return () => { mounted = false; };
+  }, [id, nav]);
 
-  async function handleAddComment(e) {
-    e.preventDefault();
-    if (!newComment.trim()) return;
+  const courseLink = useMemo(() => {
+    if (!ev) return null;
+    if (ev.course?.id) return { id: ev.course.id, label: `${ev.course.name}${ev.course.code ? ` (${ev.course.code})` : ""}` };
+    if (ev.courseId) return { id: ev.courseId, label: "Shko te lënda" };
+    return null;
+  }, [ev]);
 
-    const commentData = {
-      entityType: "event",
-      entityId: Number(eventId),
-      author: "Anonymous User",
-      text: newComment,
-    };
-    await api.post("/comments", commentData);
-    setNewComment("");
-    const commentsResponse = await api.get(`/comments/event/${eventId}`);
-    setComments(commentsResponse.data);
+  if (loading) {
+    return (
+      <div className="max-w-screen-lg mx-auto px-4 py-8">
+        <button 
+          onClick={() => nav(-1)} 
+          className="flex items-center gap-2 text-blue-600 hover:text-blue-800 transition-colors mb-6"
+        >
+          <FiArrowLeft /> Kthehu mbrapa
+        </button>
+        <div className="space-y-6">
+          <div className="rounded-2xl border border-gray-200 bg-white p-6 animate-pulse h-40" />
+          <div className="rounded-2xl border border-gray-200 bg-white p-6 animate-pulse h-64" />
+        </div>
+      </div>
+    );
   }
 
-  if (loading) return <div className="text-center py-10">Loading...</div>;
-  if (!event) return <div className="text-center py-10">Event not found.</div>;
+  if (err || !ev) {
+    return (
+      <div className="max-w-screen-lg mx-auto px-4 py-8">
+        <button 
+          onClick={() => nav(-1)} 
+          className="flex items-center gap-2 text-blue-600 hover:text-blue-800 transition-colors mb-6"
+        >
+          <FiArrowLeft /> Kthehu mbrapa
+        </button>
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center">
+          <FiAlertCircle className="text-red-500 text-4xl mx-auto mb-3" />
+          <h2 className="text-xl font-semibold text-red-800 mb-2">Gabim</h2>
+          <p className="text-red-600">{err || "Ngjarja nuk u gjet."}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          >
+            Provoni përsëri
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const dt = new Date(ev.date);
+  const isPastEvent = new Date() > dt;
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <Link to={`/courses/${event.courseId}`} className="text-gray-600 hover:text-gray-900 flex items-center mb-6">
-        <FiArrowLeft className="mr-2" />
-        Back to Course
-      </Link>
+    <div className="max-w-screen-lg mx-auto px-4 py-8 space-y-6">
+      <button 
+        onClick={() => nav(-1)} 
+        className="flex items-center gap-2 text-blue-600 hover:text-blue-800 transition-colors"
+      >
+        <FiArrowLeft /> Kthehu mbrapa
+      </button>
 
-      <div className="bg-white rounded-xl shadow-lg p-8">
-        <div className="flex items-center mb-4">
-          <FiCalendar className="text-4xl text-green-600 mr-4" />
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">{event.title}</h1>
-            <p className="text-md font-medium text-gray-500">
-              <span className="flex items-center mt-2">
-                {format(new Date(event.date), "MMMM d, yyyy 'at' p")}
-              </span>
-            </p>
+      <header className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between">
+              <div>
+                <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{ev.title}</h1>
+                <div className="mt-2 flex flex-wrap gap-2 text-sm">
+                  <span className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full ${
+                    isPastEvent 
+                      ? "bg-gray-100 text-gray-800" 
+                      : "bg-blue-100 text-blue-800"
+                  }`}>
+                    <FiCalendar size={14} /> {format(dt, "EEEE, d MMMM yyyy")}
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-blue-100 text-blue-800">
+                    <FiClock size={14} /> {format(dt, "HH:mm")}
+                  </span>
+                  {ev.location && (
+                    <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-gray-100 text-gray-800">
+                      <FiMapPin size={14} /> {ev.location}
+                    </span>
+                  )}
+                </div>
+              </div>
+              
+              {isPastEvent && (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                  E kaluar
+                </span>
+              )}
+            </div>
+
+            {ev.description && (
+              <div className="mt-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Përshkrimi</h3>
+                <p className="text-gray-700 leading-relaxed bg-gray-50 p-4 rounded-lg border border-gray-100">
+                  {ev.description}
+                </p>
+              </div>
+            )}
           </div>
-        </div>
-        {event.location && (
-          <p className="text-gray-700 mt-2 flex items-center">
-            <FiMapPin className="mr-1 text-lg text-gray-500" />
-            Location: <span className="font-semibold ml-1">{event.location}</span>
-          </p>
-        )}
-        {event.description && (
-          <p className="text-gray-700 mt-4 leading-relaxed">{event.description}</p>
-        )}
-      </div>
 
-      <div className="mt-8 bg-white rounded-xl shadow-lg p-6">
-        <h2 className="text-2xl font-semibold mb-4 flex items-center">
-          <FiMessageSquare className="mr-2 text-purple-600" /> Comments
-        </h2>
-        <form onSubmit={handleAddComment} className="mb-6 flex">
-          <input
-            type="text"
-            value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
-            placeholder="Write a comment..."
-            className="flex-grow border-2 border-gray-200 p-3 rounded-l-lg focus:outline-none focus:border-purple-500 transition-colors"
-          />
-          <button type="submit" className="bg-purple-600 text-white px-6 py-3 rounded-r-lg hover:bg-purple-700 transition duration-300">
-            <FiSend />
-          </button>
-        </form>
-        <ul className="space-y-4">
-          {comments.length > 0 ? (
-            comments.map(comment => (
-              <li key={comment.id} className="bg-gray-50 p-4 rounded-lg border-l-4 border-purple-500">
-                <p className="font-semibold">{comment.author}</p>
-                <p className="text-sm text-gray-700 mt-1">{comment.text}</p>
-                <p className="text-xs text-gray-400 mt-2">{format(new Date(comment.createdAt), "MMM d, yyyy")}</p>
-              </li>
-            ))
-          ) : (
-            <p className="text-gray-500 italic">No comments yet. Be the first to add one!</p>
+          {courseLink && (
+            <Link
+              to={`/courses/${courseLink.id}`}
+              className="self-start inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-700 hover:text-blue-900 hover:bg-blue-50 rounded-lg transition-colors"
+            >
+              <FiBookOpen size={16} />
+              <span>{courseLink.label}</span>
+            </Link>
           )}
-        </ul>
-      </div>
+        </div>
+      </header>
+
+      <CommentsPanel
+        entityType="event"
+        entityId={id}
+        allowPost={Boolean(u)}
+      />
     </div>
   );
 }

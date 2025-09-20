@@ -1,27 +1,57 @@
 const { Router } = require("express");
 const Comment = require("../models/Comment");
-const { requireRole } = require("../middlewares/auth");
+const { authRequired, requireRole } = require("../middlewares/auth");
+
 const r = Router();
 
-r.get("/", async (req, res) => {
+r.get("/", authRequired, async (req, res) => {
   const { entityType, entityId } = req.query;
-  const items = await Comment.find({ entityType, entityId: Number(entityId) })
+  if (!entityType || !entityId) {
+    return res.status(400).json({ error: "entityType dhe entityId kërkohen" });
+  }
+
+  const items = await Comment.find({
+    entityType,
+    entityId: Number(entityId)
+  })
     .sort({ createdAt: -1 })
     .limit(100);
+
   res.json(items);
 });
 
-r.post("/", requireRole("student"), async (req, res) => {
+r.post("/", authRequired, requireRole(["student", "admin"]), async (req, res) => {
   const { entityType, entityId, text } = req.body;
-  if (!text) return res.status(400).json({ error: "text i detyrueshëm" });
-  const item = await Comment.create({
+  if (!entityType || !entityId || !text?.trim()) {
+    return res.status(400).json({ error: "entityType, entityId dhe text kërkohen" });
+  }
+
+  const doc = await Comment.create({
     entityType,
-    entityId,
-    text,
+    entityId: Number(entityId),
+    text: text.trim(),
     userId: req.user.id,
     authorName: req.user.fullName
   });
-  res.json(item);
+
+  res.json(doc);
+});
+
+r.delete("/:id", authRequired, async (req, res) => {
+  const id = req.params.id;
+
+  const doc = await Comment.findById(id);
+  if (!doc) return res.status(404).json({ error: "Koment nuk u gjet" });
+
+  const isOwner = doc.userId === req.user.id;
+  const isAdmin = req.user.role === "admin";
+
+  if (!isOwner && !isAdmin) {
+    return res.status(403).json({ error: "Nuk keni leje për të fshirë këtë koment" });
+  }
+
+  await Comment.findByIdAndDelete(id);
+  res.json({ ok: true });
 });
 
 module.exports = r;
