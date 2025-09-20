@@ -11,6 +11,7 @@ import Admin from "./pages/Admin.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import AdminRoute from "./components/AdminRoute.jsx";
 import { FiLogOut } from "react-icons/fi";
+import CourseDetails from "./pages/CourseDetails.jsx";
 
 function App() {
   const [u, setU] = React.useState(getUser());
@@ -34,9 +35,9 @@ function App() {
   }
 
   const menu = u ? [
-    { to: "/dashboard", label: "Dashboard" },
-    { to: "/courses", label: "Courses" },
-    { to: "/events", label: "Events" },
+    { to: "/dashboard", label: "Paneli" },
+    { to: "/courses", label: "Lëndët" },
+    { to: "/events", label: "Konsultime & Provime" },
   ] : [];
 
   return (
@@ -212,6 +213,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           <Route path="/login" element={<Login />} />
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/courses" element={<ProtectedRoute><Courses /></ProtectedRoute>} />
+          <Route path="/courses/:id" element={<ProtectedRoute><CourseDetails/></ProtectedRoute>} />
           <Route path="/events" element={<ProtectedRoute><Events /></ProtectedRoute>} />
           <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
         </Route>

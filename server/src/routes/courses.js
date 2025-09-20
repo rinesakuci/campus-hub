@@ -8,6 +8,26 @@ r.get("/", async (req, res) => {
   res.json(data);
 });
 
+r.get("/:id", async (req, res) => {
+  const id = Number(req.params.id);
+  const course = await prisma.course.findUnique({
+    where: { id },
+    include: {
+      assignments: {
+        orderBy: { dueAt: "asc" },
+        select: { id: true, title: true, dueAt: true, description: true }
+      },
+      events: {
+        orderBy: { date: "asc" },
+        select: { id: true, title: true, date: true, location: true, description: true }
+      }
+    }
+  });
+  if (!course) return res.status(404).json({ error: "Course not found" });
+  res.json(course);
+});
+
+
 r.post("/", requireRole("admin"), async (req, res) => {
   const { name, code, description } = req.body;
   if (!name || !code) return res.status(400).json({ error: "name dhe code janë të detyrueshme" });

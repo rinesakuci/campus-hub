@@ -133,7 +133,7 @@ export default function Dashboard() {
           </DashboardCard>
 
           <DashboardCard 
-              title="Ngjarjet e Ardhshme" 
+              title="Konsultime & Provime" 
               icon={<FiCalendar className="text-3xl text-emerald-500" />}
               action={<Link to="/events" className="text-sm font-medium text-emerald-600 hover:text-emerald-800">Shiko të gjitha</Link>}
             >
