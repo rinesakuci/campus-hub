@@ -13,6 +13,8 @@ import AdminRoute from "./components/AdminRoute.jsx";
 import { FiLogOut } from "react-icons/fi";
 import CourseDetails from "./pages/CourseDetails.jsx";
 import EventDetail from "./pages/EventDetails.jsx";
+import Assignments from "./pages/Assignments.jsx";
+import AssignmentDetail from "./pages/AssignmentDetails.jsx";
 
 function App() {
   const [u, setU] = React.useState(getUser());
@@ -214,6 +216,8 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           <Route index element={<IndexRedirect />} />
           <Route path="/login" element={<Login />} />
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/assignments" element={<ProtectedRoute><Assignments /></ProtectedRoute>} />
+          <Route path="/assignments/:id" element={<ProtectedRoute><AssignmentDetail /></ProtectedRoute>} />
           <Route path="/courses" element={<ProtectedRoute><Courses /></ProtectedRoute>} />
           <Route path="/courses/:id" element={<ProtectedRoute><CourseDetails/></ProtectedRoute>} />
           <Route path="/events" element={<ProtectedRoute><Events /></ProtectedRoute>} />

@@ -38,4 +38,11 @@ r.get("/:id", async (req,res)=>{
   res.json(a);
 });
 
+r.delete("/:id", requireRole("admin"), async (req,res)=>{
+  const id = Number(req.params.id);
+  await prisma.assignment.delete({ where: { id } });
+  res.json({ ok: true });
+});
+
+
 module.exports = r;

@@ -1,106 +1,123 @@
-import React, { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
-import { api } from "../api";
+import { useEffect, useMemo, useState } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { api, getUser } from "../api";
 import { format } from "date-fns";
-import { FiBookOpen, FiClock, FiMessageSquare, FiSend, FiArrowLeft } from "react-icons/fi";
+import {
+  FiArrowLeft,
+  FiBookOpen,
+  FiClock,
+} from "react-icons/fi";
+import CommentsPanel from "../components/CommentsPanel";
 
-export default function AssignmentDetails() {
-  const { assignmentId } = useParams();
-  const [assignment, setAssignment] = useState(null);
-  const [comments, setComments] = useState([]);
-  const [newComment, setNewComment] = useState("");
+export default function AssignmentDetail() {
+  const { id } = useParams();
+  const nav = useNavigate();
+  const u = getUser();
+
+  const [a, setA] = useState(null);
+  const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
 
   useEffect(() => {
-    async function fetchData() {
+    let mounted = true;
+    async function load() {
+      setLoading(true);
+      setErr("");
       try {
-        const assignmentResponse = await api.get(`/assignments/${assignmentId}`);
-        setAssignment(assignmentResponse.data);
+        const { data } = await api.get(`/assignments/${id}`);
+        if (!mounted) return;
+        setA(data);
 
-        const commentsResponse = await api.get(`/comments/assignment/${assignmentId}`);
-        setComments(commentsResponse.data);
-      } catch (error) {
-        console.error("Failed to fetch assignment details:", error);
+        if (data?.course?.id) {
+          setCourse(data.course);
+        } else if (data?.courseId) {
+          try {
+            const { data: c } = await api.get(`/courses/${data.courseId}`);
+            if (mounted) setCourse(c);
+          } catch {}
+        }
+      } catch (e) {
+        if (e?.response?.status === 401) return nav("/login", { replace: true });
+        if (e?.response?.status === 404) setErr("Detyra nuk u gjet.");
+        else setErr("Nuk u ngarkua detyra.");
       } finally {
-        setLoading(false);
+        mounted && setLoading(false);
       }
     }
-    fetchData();
-  }, [assignmentId]);
+    load();
+    return () => { mounted = false; };
+  }, [id, nav]);
 
-  async function handleAddComment(e) {
-    e.preventDefault();
-    if (!newComment.trim()) return;
+  const due = useMemo(() => (a ? new Date(a.dueAt) : null), [a]);
 
-    const commentData = {
-      entityType: "assignment",
-      entityId: Number(assignmentId),
-      author: "Anonymous User",
-      text: newComment,
-    };
-    await api.post("/comments", commentData);
-    setNewComment("");
-    const commentsResponse = await api.get(`/comments/assignment/${assignmentId}`);
-    setComments(commentsResponse.data);
+  if (loading) {
+    return (
+      <div className="max-w-screen-lg mx-auto px-4 py-8">
+        <button onClick={() => nav(-1)} className="flex items-center gap-2 text-slate-600 hover:text-slate-900">
+          <FiArrowLeft /> Kthehu mbrapa
+        </button>
+        <div className="mt-4 grid gap-4">
+          <div className="rounded-2xl border bg-white p-6 animate-pulse h-36" />
+          <div className="rounded-2xl border bg-white p-6 animate-pulse h-64" />
+        </div>
+      </div>
+    );
   }
 
-  if (loading) return <div className="text-center py-10">Loading...</div>;
-  if (!assignment) return <div className="text-center py-10">Assignment not found.</div>;
+  if (err || !a) {
+    return (
+      <div className="max-w-screen-lg mx-auto px-4 py-8">
+        <button onClick={() => nav(-1)} className="flex items-center gap-2 text-slate-600 hover:text-slate-900">
+          <FiArrowLeft /> Kthehu mbrapa
+        </button>
+        <div className="mt-4 rounded-2xl border bg-white p-6 text-center">
+          <p className="text-red-600 text-sm">{err || "Detyra nuk u gjet."}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <Link to={`/courses/${assignment.courseId}`} className="text-gray-600 hover:text-gray-900 flex items-center mb-6">
-         <FiArrowLeft className="mr-2" />
-         Back to Course
-      </Link>
+    <div className="max-w-screen-lg mx-auto px-4 py-8 space-y-6">
+      <button onClick={() => nav(-1)} className="flex cursor-pointer items-center gap-2 text-slate-600 hover:text-slate-900">
+        <FiArrowLeft /> Kthehu mbrapa
+      </button>
 
-      <div className="bg-white rounded-xl shadow-lg p-8">
-        <div className="flex items-center mb-4">
-          <FiBookOpen className="text-4xl text-blue-600 mr-4" />
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">{assignment.title}</h1>
-            <p className="text-md font-medium text-gray-500">
-              <span className="flex items-center mt-2">
-                <FiClock className="mr-1 text-sm" /> Due: {format(new Date(assignment.dueAt), "MMMM d, yyyy 'at' p")}
-              </span>
-            </p>
+      <header className="rounded-2xl bg-white p-6 shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+          <div className="min-w-0">
+            <h1 className="text-2xl md:text-3xl font-bold text-slate-900">{a.title}</h1>
+
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+              {due && (
+                <span className="inline-flex items-center gap-1 text-violet-700 bg-violet-50 px-2 py-1 rounded-full">
+                  <FiClock /> Afati: {format(due, "MMM d, yyyy HH:mm")}
+                </span>
+              )}
+
+              {course && (
+                <Link
+                  to={`/courses/${course.id}`}
+                  className="inline-flex items-center gap-1 text-indigo-700 bg-indigo-50 px-2 py-1 rounded-full hover:underline"
+                >
+                  <FiBookOpen /> {course.name}{course.code ? ` (${course.code})` : ""}
+                </Link>
+              )}
+            </div>
+
+            {a.description && (
+              <p className="mt-4 text-slate-700 leading-relaxed">{a.description}</p>
+            )}
           </div>
         </div>
-        {assignment.description && (
-          <p className="text-gray-700 mt-4 leading-relaxed">{assignment.description}</p>
-        )}
-      </div>
+      </header>
 
-      <div className="mt-8 bg-white rounded-xl shadow-lg p-6">
-        <h2 className="text-2xl font-semibold mb-4 flex items-center">
-          <FiMessageSquare className="mr-2 text-purple-600" /> Comments
-        </h2>
-        <form onSubmit={handleAddComment} className="mb-6 flex">
-          <input
-            type="text"
-            value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
-            placeholder="Write a comment..."
-            className="flex-grow border-2 border-gray-200 p-3 rounded-l-lg focus:outline-none focus:border-purple-500 transition-colors"
-          />
-          <button type="submit" className="bg-purple-600 text-white px-6 py-3 rounded-r-lg hover:bg-purple-700 transition duration-300">
-            <FiSend />
-          </button>
-        </form>
-        <ul className="space-y-4">
-          {comments.length > 0 ? (
-            comments.map(comment => (
-              <li key={comment.id} className="bg-gray-50 p-4 rounded-lg border-l-4 border-purple-500">
-                <p className="font-semibold">{comment.author}</p>
-                <p className="text-sm text-gray-700 mt-1">{comment.text}</p>
-                <p className="text-xs text-gray-400 mt-2">{format(new Date(comment.createdAt), "MMM d, yyyy")}</p>
-              </li>
-            ))
-          ) : (
-            <p className="text-gray-500 italic">No comments yet. Be the first to add one!</p>
-          )}
-        </ul>
-      </div>
+      <CommentsPanel
+        entityType="assignment"
+        entityId={id}
+        allowPost={Boolean(u)}
+      />
     </div>
   );
 }

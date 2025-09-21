@@ -10,8 +10,8 @@ import {
 } from "react-icons/fi";
 
 export default function CommentsPanel({
-  entityType,     // "event" | "assignment"
-  entityId,       // number ose string
+  entityType,
+  entityId,
   allowPost = false,
   className = ""
 }) {
@@ -36,7 +36,7 @@ export default function CommentsPanel({
     }
   }
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [entityType, entityId]);
+  useEffect(() => { load(); }, [entityType, entityId]);
 
   async function addComment(e) {
     e.preventDefault();
@@ -72,7 +72,6 @@ export default function CommentsPanel({
 
   async function deleteComment(c) {
     setErr("");
-    // Vetëm në UI: kontrollo të drejtën
     const canDelete = currentUser && (currentUser.role === "admin" || currentUser.id === c.userId);
     if (!canDelete) return;
 
@@ -83,7 +82,7 @@ export default function CommentsPanel({
       await api.delete(`/comments/${c._id || c.id}`);
     } catch (e) {
       setErr(e?.response?.data?.error || "Fshirja dështoi.");
-      setComments(prev); // rikthe listën
+      setComments(prev);
     }
   }
 
@@ -151,7 +150,7 @@ export default function CommentsPanel({
                         <button
                           onClick={() => deleteComment(c)}
                           title="Fshi komentin"
-                          className="ml-2 p-2 rounded-lg hover:bg-red-50 text-red-600 transition"
+                          className="ml-2 p-2 rounded-lg hover:bg-red-50 text-red-600 transition cursor-pointer"
                         >
                           <FiTrash2 />
                         </button>

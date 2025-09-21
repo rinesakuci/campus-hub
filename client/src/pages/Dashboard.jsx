@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
-import { format, differenceInCalendarDays, isBefore } from "date-fns";
+import { format, differenceInCalendarDays, isBefore, isAfter } from "date-fns";
 import { Link, useNavigate } from "react-router-dom";
 import { api, getUser } from "../api";
 import {
@@ -50,18 +50,24 @@ export default function Dashboard() {
 
   const user = getUser();
 
+  const currentAssignments = useMemo(() => {
+    const now = new Date();
+    return assignments.filter(a => isAfter(new Date(a.dueAt), now));
+  }, [assignments]);
+
   const stats = useMemo(() => {
     const today = new Date();
     const upcomingEvents = events.filter((e) => new Date(e.date) >= today);
     const overdueAssignments = assignments.filter((a) => isBefore(new Date(a.dueAt), today));
-    const pendingAssignments = assignments.length;
+    const pendingAssignments = currentAssignments.length;
 
     return {
       upcomingCount: upcomingEvents.length,
       pendingCount: pendingAssignments,
       notifCount: notifications.length,
+      overdueCount: overdueAssignments.length,
     };
-  }, [events, assignments, notifications]);
+  }, [events, currentAssignments, notifications, assignments]);
 
   return (
     <div className="min-h-[100dvh]">
@@ -140,7 +146,10 @@ export default function Dashboard() {
               {isLoading ? <SkeletonList rows={2} /> : (
                 events.length ? (
                   <ul className="space-y-4">
-                    {events.slice(0, 4).map((event) => (
+                    {events
+                      .filter(e => new Date(e.date) >= new Date())
+                      .slice(0, 4)
+                      .map((event) => (
                       <li
                         key={event.id}
                         onClick={()=> nav(`/events/${event.id}`)}
@@ -175,9 +184,12 @@ export default function Dashboard() {
               action={<Link to="/assignments" className="text-sm font-medium text-violet-600 hover:text-violet-800">Shiko të gjitha</Link>}
             >
               {isLoading ? <SkeletonList rows={2} /> : (
-                assignments.length ? (
+                currentAssignments.length ? (
                   <ul className="space-y-4">
-                    {assignments.slice(0, 4).map((a) => {
+                    {currentAssignments
+                      .sort((a, b) => new Date(a.dueAt) - new Date(b.dueAt)) 
+                      .slice(0, 4)
+                      .map((a) => {
                       const due = new Date(a.dueAt);
                       const daysUntilDue = differenceInCalendarDays(due, new Date());
                       const isUrgent = daysUntilDue <= 2;
@@ -196,7 +208,7 @@ export default function Dashboard() {
                             <span className={`text-xs font-medium px-2 py-1 rounded-full ${
                               isUrgent ? 'bg-rose-100 text-rose-800' : 'bg-violet-100 text-violet-800'
                             }`}>
-                              Në {daysUntilDue} ditë
+                              {daysUntilDue === 0 ? 'Sot' : `Në ${daysUntilDue} ditë`}
                             </span>
                           </div>
 
@@ -214,7 +226,7 @@ export default function Dashboard() {
                     })}
 
                   </ul>
-                ) : <div className="text-sm text-slate-500">S'ka detyra brenda intervalit.</div>
+                ) : <div className="text-sm text-slate-500">S'ka detyra aktive.</div>
               )}
             </DashboardCard>
         </div>
@@ -226,12 +238,16 @@ export default function Dashboard() {
 function StatCard({ icon, label, value, tone = "default" }) {
   const tones = {
     default: "ring-slate-200 bg-white",
-    warning: "ring-amber-200 bg-white",
+    warning: "ring-amber-200 bg-amber-50",
   };
   return (
     <div className={`rounded-2xl p-5 shadow-sm ring-1 ${tones[tone]}`}>
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-50 text-slate-700">{icon}</div>
+        <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${
+          tone === "warning" ? "bg-amber-100 text-amber-600" : "bg-slate-50 text-slate-700"
+        }`}>
+          {icon}
+        </div>
         <div>
           <p className="text-sm text-slate-500">{label}</p>
           <p className="text-2xl font-bold text-slate-900">{value}</p>
