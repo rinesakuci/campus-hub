@@ -1,36 +1,35 @@
 const { Router } = require("express");
 const Notification = require("../models/Notification");
 const { requireRole } = require("../middlewares/auth");
+
 const r = Router();
 
 r.get("/", async (req, res) => {
-  const userId = req.user?.id;
-  const days = Math.max(1, Number(req.query.days || 20));
+  const days = Math.max(1, Number(req.query.days || 30));
   const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
-  const audience = [{ userId: null }, { userId: { $exists: false } }];
-  if (userId) audience.push({ userId });
-
-  const items = await Notification.find({
-    $and: [
-      { $or: audience },
-      { createdAt: { $gte: cutoff } },
-    ],
-  })
+  const items = await Notification.find({ createdAt: { $gte: cutoff } })
     .sort({ createdAt: -1 })
-    .limit(50);
-    
+    .limit(100);
+
   res.json(items);
 });
 
 r.post("/", requireRole("admin"), async (req, res) => {
-  const { title, message, userId } = req.body;
+  let { title, message } = req.body;
+  title = (title || "").trim();
+  message = (message || "").trim();
   if (!title || !message) return res.status(400).json({ error: "title dhe message kërkohen" });
-  const it = await Notification.create({ title, message, userId: userId ?? null });
-  res.json(it);
+
+  const doc = await Notification.create({
+    title,
+    message,
+  });
+
+  res.status(201).json(doc);
 });
 
-r.delete('/:id', requireRole('admin'), async (req,res)=>{
+r.delete("/:id", requireRole("admin"), async (req, res) => {
   await Notification.findByIdAndDelete(req.params.id);
   res.json({ ok: true });
 });

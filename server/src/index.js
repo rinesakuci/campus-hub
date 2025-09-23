@@ -11,6 +11,7 @@ const eventRoutes = require("./routes/events");
 const commentRoutes = require("./routes/comments");
 const assignmentRoutes = require("./routes/assignments");
 const notificationRoutes = require("./routes/notifications");
+const userRoutes = require("./routes/users");
 
 const app = express();
 app.use(cors({ origin: process.env.CLIENT_ORIGIN, credentials: true }));
@@ -25,6 +26,7 @@ app.use("/events", eventRoutes);
 app.use("/comments", commentRoutes);
 app.use("/assignments", assignmentRoutes);
 app.use("/notifications", notificationRoutes);
+app.use("/users", userRoutes);
 
 const PORT = Number(process.env.PORT || 5000);
 

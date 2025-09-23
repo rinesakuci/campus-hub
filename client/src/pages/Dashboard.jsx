@@ -119,7 +119,7 @@ export default function Dashboard() {
             {isLoading ? <SkeletonList rows={3} /> : (
               notifications.length ? (
                 <ul className="space-y-4">
-                  {notifications.slice(0, 3).map((notif) => (
+                  {notifications.map((notif) => (
                     <li key={notif._id || notif.id} className="rounded-xl border border-slate-200 bg-white p-4 hover:shadow-md transition-shadow">
                       <div className="flex items-start gap-3">
                         <div className={`p-2 rounded-full ${notif.priority === 'high' ? 'bg-rose-100 text-rose-600' : 'bg-blue-100 text-blue-600'}`}>
